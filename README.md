@@ -140,3 +140,27 @@ If the response is unsuccessful, we will receive status 400 and the following me
 ## License
 
 Copyright © 2023 Devsu. All rights reserved.
+
+## CI/CD & DevOps Additions
+
+- **Dockerfile** multi-stage con usuario no root y healthcheck.
+- **GitHub Actions** workflow `ci-cd.yml`: build, tests, static analysis, coverage, build+push, Trivy (opcional).
+- **Kubernetes** manifests en `k8s/`: Namespace, ConfigMap, Secret, Deployment (2 réplicas), Service, Ingress.
+- **Scripts** en `scripts/` para renderizar imagen y desplegar localmente.
+- **Makefile** con atajos.
+
+### Ejecutar local con Minikube
+```bash
+minikube start
+minikube addons enable ingress
+docker build -t <usuario>/demo-devops-java:local .
+export IMAGE_TAG=local REGISTRY=docker.io/<usuario>
+./scripts/render_k8s.sh
+./scripts/deploy_local.sh
+minikube ip  # mapear demo.local en /etc/hosts si usas Ingress
+curl http://demo.local/api/users
+```
+
+### Pipeline
+- Configura secrets `DOCKER_USERNAME` y `DOCKER_PASSWORD`.
+- El workflow publica dos tags: `latest` y `${GITHUB_SHA}`.

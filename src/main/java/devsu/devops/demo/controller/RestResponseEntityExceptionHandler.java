@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import lombok.extern.log4j.Log4j2;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -23,6 +22,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import devsu.devops.demo.exception.BadRequestException;
 import devsu.devops.demo.exception.ResourceNotFoundException;
 
+import lombok.extern.log4j.Log4j2;
 
 @Log4j2
 @ControllerAdvice
