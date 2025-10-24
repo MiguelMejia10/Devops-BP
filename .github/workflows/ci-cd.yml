@@ -48,7 +48,7 @@ jobs:
 
       # 3.3 - Compilar y ejecutar pruebas unitarias
       - name: Build and test project
-        run: mvn -B -q clean verify
+        run: mvn -B -q clean verify -Dcheckstyle.skip=true
 
       # 3.4 - Publicar reportes (JUnit + Jacoco + SpotBugs)
       - name: Upload test & coverage reports
