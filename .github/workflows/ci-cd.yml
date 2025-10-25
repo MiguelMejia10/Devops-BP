@@ -94,6 +94,10 @@ jobs:
           kubectl -n demo apply -f k8s/service.yaml
           kubectl -n demo apply -f k8s/deployment.yaml
           kubectl -n demo apply -f k8s/ingress.yaml
+      
+      - name: Set image on deployment
+        run: |
+          kubectl -n demo set image deployment/demo-app app=${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
 
       - name: Wait for rollout
         run: kubectl -n demo rollout status deploy/demo-app --timeout=180s
