@@ -34,13 +34,13 @@ steps:
       $(imageRef)
 
 # 👀 Esperar al rollout y mostrar estado
-- task: Kubectl@1
-  displayName: 'Rollout status'
-  inputs:
-    kubernetesServiceConnection: '$(kubernetesServiceConnection)'
-    namespace: '$(kubernetesNamespace)'
-    command: 'rollout'
-    arguments: 'status deploy/demo-app --timeout=120s'
+# - task: Kubectl@1
+#   displayName: 'Rollout status'
+#   inputs:
+#     kubernetesServiceConnection: '$(kubernetesServiceConnection)'
+#     namespace: '$(kubernetesNamespace)'
+#     command: 'rollout'
+#     arguments: 'status deploy/demo-app --timeout=120s'
 
 - task: Kubectl@1
   displayName: 'Get resources'
