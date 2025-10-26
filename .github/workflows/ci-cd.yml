@@ -118,30 +118,43 @@ jobs:
         run: kubectl -n demo get all
 
   # ---------- 4) Deploy to Heroku (Container Registry) ----------
-  deploy_heroku:
-    needs: docker
-    if: ${{ github.event.inputs.target == 'heroku' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+deploy_heroku:
+  needs: docker
+  if: ${{ github.event.inputs.target == 'heroku' }}
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
 
-      - name: Install Heroku CLI
-        run: curl https://cli-assets.heroku.com/install.sh | sh
+    - name: Install Heroku CLI
+      # CLI oficial
+      run: curl https://cli-assets.heroku.com/install.sh | sh
 
-      - name: Log in to Heroku Container Registry
-        env:
-          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-        run: echo $HEROKU_API_KEY | docker login --username=_ --password-stdin registry.heroku.com
+    - name: Login to Heroku (CLI) + Container Registry
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      run: |
+        # la CLI usa HEROKU_API_KEY si está en el entorno
+        heroku auth:whoami || true
+        # login al registry de contenedores
+        echo $HEROKU_API_KEY | docker login --username=_ --password-stdin registry.heroku.com
+        heroku container:login
 
-      - name: Build & push image to Heroku
-        env:
-          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
-        run: |
-          docker build -t registry.heroku.com/$HEROKU_APP_NAME/web .
-          docker push registry.heroku.com/$HEROKU_APP_NAME/web
+    - name: Ensure Heroku stack is "container"
+      env:
+        HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+      run: |
+        # Cambia el stack de la app a 'container' (idempotente)
+        heroku stack:set container --app $HEROKU_APP_NAME
+        heroku stack --app $HEROKU_APP_NAME
 
-      - name: Release new version
-        env:
-          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
-        run: heroku container:release web --app $HEROKU_APP_NAME
+    - name: Build & push image to Heroku
+      env:
+        HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+      run: |
+        docker build -t registry.heroku.com/$HEROKU_APP_NAME/web .
+        docker push registry.heroku.com/$HEROKU_APP_NAME/web
+
+    - name: Release new version
+      env:
+        HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+      run: heroku container:release web --app $HEROKU_APP_NAME
