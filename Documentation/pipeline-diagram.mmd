@@ -1,0 +1,16 @@
+flowchart LR
+  dev([Developer\npush/PR o Run Workflow]) --> GH[GitHub Actions\nci-cd.yml]
+
+  subgraph CI
+    BT[build-test\ncheckout + JDK 17\nmvn test] --> DK[docker\nbuildx multi-arch\npush sha/latest]
+  end
+
+  DK --> CH{target}
+  CH -- k8s o push --> K8S[deploy_k8s\nkubectl apply\nset image\nrollout status]
+  CH -- heroku --> HRK[deploy_heroku\nstack:set container\nbuild/push registry.heroku.com\ncontainer:release\nps:scale web=1]
+
+  K8S --> CL[(Kubernetes local\nnamespace: demo)]
+  HRK --> APP[(Heroku App\nhttps://<app>.herokuapp.com)]
+
+  BT --> ART[(Artifacts & Logs)]
+  DK --> ART
