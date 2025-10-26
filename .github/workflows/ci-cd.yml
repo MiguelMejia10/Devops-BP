@@ -1,11 +1,18 @@
-name: CI-CD (Local K8s)
+name: CI-CD (K8s & Heroku)
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      target:
+        description: "Dónde desplegar (k8s o heroku)"
+        required: true
+        default: "heroku"
+        type: choice
+        options: [k8s, heroku]
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
 
 env:
   IMAGE_NAME: demo-devops-java
@@ -23,8 +30,8 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
-          cache: 'maven'
+          java-version: "17"
+          cache: "maven"
 
       - name: Build & Unit Tests (skip checkstyle)
         run: mvn -B -q clean verify -Dcheckstyle.skip=true
@@ -66,12 +73,11 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-  # ---------- 3) Deploy to local Kubernetes (Minikube / Docker Desktop) ----------
-  deploy:
+  # ---------- 3) Deploy to Kubernetes (local/self-hosted) ----------
+  deploy_k8s:
     needs: docker
+    if: ${{ github.event.inputs.target == 'k8s' || github.event_name == 'push' }}
     runs-on: self-hosted
-    # si al configurar tu runner añadiste labels como "k8s", filtra así:
-    # runs-on: [self-hosted, k8s]
     env:
       REGISTRY: docker.io/${{ secrets.DOCKER_USERNAME }}
       IMAGE_NAME: demo-devops-java
@@ -87,22 +93,20 @@ jobs:
       - name: Ensure namespace & ingress addon (idempotent)
         run: |
           kubectl get ns demo || kubectl create ns demo
-          # Si usas Minikube y NO habilitaste ingress via addon, comenta la línea de abajo.
           # minikube addons enable ingress || true
 
       - name: Render image into deployment
         run: |
           sed -i.bak "s#<TU_REGISTRO>/demo-devops-java:${IMAGE_TAG}#${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}#g" k8s/deployment.yaml
-      
 
       - name: Apply manifests
         run: |
-          kubectl -n demo apply -f k8s/configmap.yaml
-          kubectl -n demo apply -f k8s/secret.yaml
+          kubectl -n demo apply -f k8s/configmap.yaml || true
+          kubectl -n demo apply -f k8s/secret.yaml || true
           kubectl -n demo apply -f k8s/service.yaml
           kubectl -n demo apply -f k8s/deployment.yaml
-          kubectl -n demo apply -f k8s/ingress.yaml
-      
+          kubectl -n demo apply -f k8s/ingress.yaml || true
+
       - name: Set image on deployment
         run: |
           kubectl -n demo set image deployment/demo-app app=${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
@@ -112,3 +116,32 @@ jobs:
 
       - name: Show resources
         run: kubectl -n demo get all
+
+  # ---------- 4) Deploy to Heroku (Container Registry) ----------
+  deploy_heroku:
+    needs: docker
+    if: ${{ github.event.inputs.target == 'heroku' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
+
+      - name: Log in to Heroku Container Registry
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: echo $HEROKU_API_KEY | docker login --username=_ --password-stdin registry.heroku.com
+
+      - name: Build & push image to Heroku
+        env:
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+        run: |
+          docker build -t registry.heroku.com/$HEROKU_APP_NAME/web .
+          docker push registry.heroku.com/$HEROKU_APP_NAME/web
+
+      - name: Release new version
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+        run: heroku container:release web --app $HEROKU_APP_NAME
