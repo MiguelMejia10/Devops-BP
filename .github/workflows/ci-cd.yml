@@ -143,7 +143,6 @@ jobs:
         env:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
         run: |
-          # Cambia el stack de la app a 'container' (idempotente)
           heroku stack:set container --app $HEROKU_APP_NAME
           heroku stack --app $HEROKU_APP_NAME
 
@@ -158,3 +157,8 @@ jobs:
         env:
           HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
         run: heroku container:release web --app $HEROKU_APP_NAME
+
+      - name: Ensure web dyno is up
+        env:
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+        run: heroku ps:scale web=1 --app $HEROKU_APP_NAME
